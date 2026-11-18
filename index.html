@@ -68,7 +68,14 @@
           <label class="switch-row"><input type="checkbox" id="sCaps"><span class="switch"></span>응원 문구</label>
           <label class="switch-row" id="seasonRow"><input type="checkbox" id="sSeason"><span class="switch"></span>계절 장</label>
         </div>
-        <div class="seg seg-gap" id="secSeg" title="사진 한 장 시간"></div>
+        <div class="sec-row">
+          <div class="seg" id="secSeg" title="사진 한 장 시간"></div>
+          <select id="transSel" class="text-input" title="장면 넘어가는 효과">
+            <option value="fade">페이드</option>
+            <option value="slide">슬라이드</option>
+            <option value="none">효과 없음</option>
+          </select>
+        </div>
       </section>
 
       <section class="panel-sec">

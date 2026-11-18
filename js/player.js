@@ -2,7 +2,7 @@
 var Player = (function () {
   var FADE = 0.6;          // 장면이 겹치며 바뀌는 시간(초)
   var DUR = { title: 3.5, season: 2.2, end: 4.5 };
-  var buffer = null;
+  var buffer = null, buffer2 = null;
 
   function env() {
     var s = State.data.settings;
@@ -131,16 +131,33 @@ var Player = (function () {
     while (i < sl.length - 1 && sl[i + 1].start <= t) i++;
     var cur = sl[i];
     var local = Math.min(1, Math.max(0, (t - cur.start) / cur.dur));
-    if (i > 0 && t < cur.start + FADE) {
+    var mode = e.settings.transition || 'fade';   // fade: 겹치며, slide: 옆으로 밀기, none: 바로 바뀜
+    if (i > 0 && t < cur.start + FADE && mode !== 'none') {
       var prev = sl[i - 1];
+      var k = (t - cur.start) / FADE;
       Frames.render(ctx, prev, Math.min(1, (t - prev.start) / prev.dur), e);
       if (!buffer) buffer = document.createElement('canvas');
       if (buffer.width !== ctx.canvas.width) { buffer.width = ctx.canvas.width; buffer.height = ctx.canvas.height; }
       var b = buffer.getContext('2d');
       Frames.render(b, cur, local, e);
-      ctx.globalAlpha = (t - cur.start) / FADE;
-      ctx.drawImage(buffer, 0, 0, Frames.W, Frames.H);
-      ctx.globalAlpha = 1;
+      if (mode === 'slide') {
+        // 새 장면이 오른쪽에서 들어오고, 앞 장면은 왼쪽으로 밀려나요
+        var ease = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        var x = Frames.W * ease;
+        if (!buffer2) buffer2 = document.createElement('canvas');
+        if (buffer2.width !== ctx.canvas.width) { buffer2.width = ctx.canvas.width; buffer2.height = ctx.canvas.height; }
+        var b2 = buffer2.getContext('2d');
+        b2.setTransform(1, 0, 0, 1, 0, 0);
+        b2.drawImage(ctx.canvas, 0, 0);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, Frames.W, Frames.H);
+        ctx.drawImage(buffer2, -x, 0, Frames.W, Frames.H);
+        ctx.drawImage(buffer, Frames.W - x, 0, Frames.W, Frames.H);
+      } else {
+        ctx.globalAlpha = k;
+        ctx.drawImage(buffer, 0, 0, Frames.W, Frames.H);
+        ctx.globalAlpha = 1;
+      }
     } else {
       Frames.render(ctx, cur, local, e);
     }

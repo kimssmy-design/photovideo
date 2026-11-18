@@ -92,6 +92,7 @@ var State = (function () {
     showDate: true,       // 사진 아래 날짜
     showAge: true,        // 사진 아래 생후 개월 수
     seasons: true,
+    transition: 'fade',   // fade: 페이드, slide: 슬라이드, none: 효과 없음
     order: 'date',
     shuffleSeed: 1,
     captionsOn: true,

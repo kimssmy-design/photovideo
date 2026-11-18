@@ -74,9 +74,10 @@ var App = (function () {
     seg($('orderSeg'), [['date', '날짜순'], ['shuffle', '골고루 섞기']], s.order, function (v) { s.order = v; changed(); renderSettings(); });
     $('reshuffleBtn').hidden = !shuffle;
     $('seasonRow').style.visibility = shuffle ? 'hidden' : '';
-    seg($('secSeg'), [[2, '한 장 2초'], [3, '3초'], [4, '4초'], [5, '5초']], s.photoSec, function (v) { s.photoSec = v; changed(); renderSettings(); });
+    seg($('secSeg'), [[2, '2초'], [3, '3초'], [4, '4초'], [5, '5초']], s.photoSec, function (v) { s.photoSec = v; changed(); renderSettings(); });
     seg($('themeSeg'), [['mono', '흑백'], ['cloud', '구름'], ['star', '별'], ['flower', '꽃']], s.theme, function (v) { s.theme = v; changed(); renderSettings(); });
     $('monoOpts').hidden = s.theme !== 'mono';
+    $('transSel').value = s.transition || 'fade';
     seg($('qualitySeg'), [['hd', '고화질'], ['sd', '보통']], s.quality, function (v) { s.quality = v; changed(); renderSettings(); });
     $('qualitySeg').title = s.quality === 'hd' ? '1080×1920 · 인스타·유튜브용' : '720×1280 · 빠르고 가벼움';
     markColor();
@@ -159,6 +160,7 @@ var App = (function () {
     $('bodyFontBtn').onclick = function () {
       Fonts.openPicker('body', S().bodyFont, function (k) { S().bodyFont = k; renderFontBtns(); changed(); });
     };
+    $('transSel').onchange = function () { S().transition = $('transSel').value; changed(); };
     $('musicSel').onchange = function () { S().music = $('musicSel').value; State.save(); };
     $('musicFile').onchange = function (e) {
       var f = e.target.files[0];
