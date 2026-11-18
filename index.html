@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>포영포영 · 우리 아이 포토 영상</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Gaegu:wght@700&family=Dongle:wght@700&family=Gamja+Flower&family=Sunflower:wght@500&family=Single+Day&family=Hi+Melody&family=Nanum+Pen+Script&family=Gowun+Dodum&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 위쪽 바 -->
+<header class="topbar">
+  <div class="brand">
+    <strong class="logo">포영포영 <span class="logo-play">▶</span></strong>
+    <span class="status" id="status">사진 0장</span>
+    <span class="save-status" id="saveStatus"></span>
+  </div>
+  <div class="top-actions">
+    <button type="button" class="btn btn-ghost" id="helpBtn" aria-label="사용법"><span>?</span><span class="help-word">사용법</span></button>
+    <button type="button" class="btn" id="previewBtn">▶ 미리보기</button>
+    <button type="button" class="btn btn-primary" id="makeBtn">영상 만들기</button>
+  </div>
+</header>
+
+<div class="inapp-notice" id="inappNotice" hidden>
+  <span>📱 앱 안에서는 영상 저장이 안 될 수 있어요. <b id="inappHow"></b></span>
+  <button type="button" class="link-btn" id="inappBtn">기본 브라우저로 열기</button>
+</div>
+
+<div class="app">
+  <!-- 왼쪽 설정 패널 (폰에서는 위쪽 서랍) -->
+  <aside class="panel">
+    <div class="panel-top">
+      <label class="btn btn-primary btn-add">+ 사진 추가<input type="file" id="photoInput" accept="image/*" multiple hidden></label>
+      <button type="button" class="btn panel-toggle" id="panelToggle" aria-expanded="false">설정 ▾</button>
+    </div>
+
+    <div class="panel-body" id="panelBody">
+      <section class="panel-sec">
+        <h3>아기</h3>
+        <div class="two">
+          <input type="text" id="cName" class="text-input" placeholder="이름 (김다나)" maxlength="20">
+          <input type="date" id="cBirth" class="text-input" aria-label="생일">
+        </div>
+        <label class="switch-row"><input type="checkbox" id="sDrop"><span class="switch"></span>성 빼고 부르기 (김다나 → 다나)</label>
+      </section>
+
+      <section class="panel-sec">
+        <h3>영상 글</h3>
+        <label class="mini-label" for="sTitle">첫 장</label>
+        <input type="text" id="sTitle" class="text-input" maxlength="30">
+        <label class="mini-label" for="sEnd">마지막 장 <em>{이름아} → 다나야</em></label>
+        <textarea id="sEnd" class="text-input" rows="2" maxlength="60"></textarea>
+      </section>
+
+      <section class="panel-sec">
+        <h3>사진 <span class="h3-links"><button type="button" class="link-btn" id="reshuffleBtn">다시 섞기</button><button type="button" class="link-btn" id="capsEditBtn">응원 문구 고치기</button></span></h3>
+        <div class="seg" id="orderSeg"></div>
+        <div class="switch-pair">
+          <label class="switch-row"><input type="checkbox" id="sShowDate"><span class="switch"></span>날짜</label>
+          <label class="switch-row"><input type="checkbox" id="sShowAge"><span class="switch"></span>생후 개월 수</label>
+        </div>
+        <div class="switch-pair">
+          <label class="switch-row"><input type="checkbox" id="sCaps"><span class="switch"></span>응원 문구</label>
+          <label class="switch-row" id="seasonRow"><input type="checkbox" id="sSeason"><span class="switch"></span>계절 장</label>
+        </div>
+        <div class="seg seg-gap" id="secSeg" title="사진 한 장 시간"></div>
+      </section>
+
+      <section class="panel-sec">
+        <h3>꾸미기</h3>
+        <div class="seg" id="themeSeg"></div>
+        <div id="monoOpts">
+          <div class="color-row" id="colorRow">
+            <label class="color-custom">직접 <input type="color" id="colorCustom" value="#111111"></label>
+          </div>
+          <div class="switch-pair">
+            <label class="switch-row"><input type="checkbox" id="sBorder"><span class="switch"></span>흰 테두리</label>
+            <label class="switch-row"><input type="checkbox" id="sSticker"><span class="switch"></span>별·하트</label>
+          </div>
+        </div>
+        <div class="two font-two">
+          <button type="button" id="titleFontBtn" class="font-btn" title="제목 글꼴"></button>
+          <button type="button" id="bodyFontBtn" class="font-btn" title="본문 글꼴"></button>
+        </div>
+      </section>
+
+      <section class="panel-sec">
+        <h3>음악 <span class="h3-links"><label class="link-btn">파일 넣기<input type="file" id="musicFile" accept="audio/*" hidden></label><button type="button" class="link-btn" id="musicTry">들어보기</button></span></h3>
+        <select id="musicSel" class="text-input"></select>
+      </section>
+
+      <section class="panel-foot">
+        <button type="button" class="link-btn" id="backupSaveBtn">작업 저장</button>
+        <label class="link-btn">불러오기<input type="file" id="backupFile" hidden></label>
+        <button type="button" class="link-btn" id="clearBtn">모두 지우기</button>
+        <p class="credit">made by 다나맘</p>
+      </section>
+    </div>
+  </aside>
+
+  <!-- 오른쪽: 사진 판 + 영상 미리보기 -->
+  <main class="desk">
+    <section class="sheet-paper" id="paper">
+      <div class="paper-head">
+        <span class="paper-year" id="paperYear"></span>
+        <span class="paper-title" id="paperTitle">사진 0장</span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <aside class="preview-col">
+      <div class="preview-card">
+        <canvas id="previewCanvas" width="720" height="1280"></canvas>
+        <button type="button" class="play-btn" id="playBtn" aria-label="미리보기 재생">▶</button>
+      </div>
+      <p class="preview-cap" id="estText">영상 첫 장 미리보기</p>
+    </aside>
+  </main>
+</div>
+
+<!-- 영상 만들기 / 완성 -->
+<div class="sheet" id="resultSheet" hidden>
+  <div class="sheet-box">
+    <div class="sheet-head"><h2 id="resultTitle">영상 만들기</h2><button type="button" class="x" data-close="resultSheet" aria-label="닫기">✕</button></div>
+    <div class="screen">
+      <canvas id="workCanvas" width="720" height="1280"></canvas>
+      <video id="resultVideo" controls playsinline hidden></video>
+    </div>
+    <div id="working">
+      <div class="bar"><div id="barFill"></div></div>
+      <p class="sheet-msg" id="workText">영상 만드는 중… 화면을 켜 두세요</p>
+      <button type="button" id="cancelBtn" class="btn">그만 만들기</button>
+    </div>
+    <div id="done" hidden>
+      <p class="sheet-msg" id="doneNote"></p>
+      <button type="button" id="saveBtn" class="btn btn-primary">영상 저장</button>
+      <div class="sheet-actions">
+        <button type="button" id="shareBtn" class="btn">공유</button>
+        <button type="button" id="coverBtn" class="btn">대표 사진 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 미리보기 -->
+<div class="sheet" id="previewSheet" hidden>
+  <div class="sheet-box">
+    <div class="sheet-head"><h2>미리보기</h2><button type="button" class="x" data-close="previewSheet" aria-label="닫기">✕</button></div>
+    <div class="screen"><canvas id="bigPreview" width="720" height="1280"></canvas></div>
+    <div class="bar"><div id="previewFill"></div></div>
+    <p class="sheet-msg" id="previewText"></p>
+    <button type="button" id="replayBtn" class="btn">처음부터 다시</button>
+  </div>
+</div>
+
+<!-- 사진 눌렀을 때 -->
+<div class="sheet" id="photoSheet" hidden>
+  <div class="sheet-box">
+    <div class="sheet-head"><h2>사진</h2><button type="button" class="x" data-close="photoSheet" aria-label="닫기">✕</button></div>
+    <img id="photoView" class="photo-view" alt="">
+    <input type="text" id="photoText" class="text-input" maxlength="30" placeholder="이 사진의 글 (예: 첫 걸음마)">
+    <p class="sheet-msg small">쓰면 응원 문구 대신 이 글이 나와요</p>
+    <button type="button" id="coverSetBtn" class="btn btn-primary">★ 대표 사진으로 정하기</button>
+    <button type="button" id="photoDelBtn" class="btn">이 사진 빼기</button>
+  </div>
+</div>
+
+<!-- 응원 문구 고치기 -->
+<div class="sheet" id="capsSheet" hidden>
+  <div class="sheet-box">
+    <div class="sheet-head"><h2>응원 문구</h2><button type="button" class="x" data-close="capsSheet" aria-label="닫기">✕</button></div>
+    <textarea id="capsText" class="text-input" rows="10"></textarea>
+    <p class="sheet-msg small">한 줄에 하나씩 · 사진마다 돌아가며 나와요 · {이름} {이름이} {이름아}</p>
+    <div class="sheet-actions">
+      <button type="button" id="capsReset" class="btn">기본 문구로</button>
+      <button type="button" class="btn btn-primary" data-close="capsSheet">완료</button>
+    </div>
+  </div>
+</div>
+
+<!-- 글꼴 고르기 -->
+<div class="sheet" id="fontSheet" hidden>
+  <div class="sheet-box wide">
+    <div class="sheet-head"><h2 id="fontSheetTitle">글꼴 고르기</h2><button type="button" class="x" data-close="fontSheet" aria-label="닫기">✕</button></div>
+    <div id="fontSheetBody" class="font-body"></div>
+  </div>
+</div>
+
+<!-- 확인 창 -->
+<div class="sheet" id="askSheet" hidden>
+  <div class="sheet-box">
+    <p id="askText" class="ask-text"></p>
+    <div class="sheet-actions">
+      <button type="button" id="askNo" class="btn">취소</button>
+      <button type="button" id="askYes" class="btn btn-primary">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 사용법 -->
+<div class="sheet" id="helpSheet" hidden>
+  <div class="sheet-box">
+    <div class="sheet-head"><h2>사용법</h2><button type="button" class="x" data-close="helpSheet" aria-label="닫기">✕</button></div>
+    <ul class="help-list">
+      <li><span class="help-emoji">📸</span><span class="help-text"><strong>사진 넣기</strong>"+ 사진 추가" 또는 끌어다 놓기</span></li>
+      <li><span class="help-emoji">👶</span><span class="help-text"><strong>아기 정보</strong>이름 · 생일 넣으면 생후 개월 수</span></li>
+      <li><span class="help-emoji">👆</span><span class="help-text"><strong>사진 누르기</strong>★ 대표 사진 · 사진 글 쓰기</span></li>
+      <li><span class="help-emoji">🎬</span><span class="help-text"><strong>영상 만들기</strong>오른쪽 위 검정 버튼</span></li>
+      <li><span class="help-emoji">🍎</span><span class="help-text"><strong>아이폰 저장</strong>'동영상 저장' 누르기</span></li>
+      <li><span class="help-emoji">📅</span><span class="help-text"><strong>날짜가 이상하면</strong>카톡 사진은 '원본'으로 받기</span></li>
+      <li><span class="help-emoji">💾</span><span class="help-text"><strong>작업 저장</strong>다른 기기에서 이어 하기</span></li>
+      <li><span class="help-emoji">🔒</span><span class="help-text"><strong>안심</strong>사진은 이 기기 밖으로 안 나가요</span></li>
+    </ul>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/lib/mp4-muxer.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/fonts.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/child.js"></script>
+<script src="js/captions.js"></script>
+<script src="js/frames.js"></script>
+<script src="js/player.js"></script>
+<script src="js/music.js"></script>
+<script src="js/export.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
