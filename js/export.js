@@ -1,8 +1,13 @@
 // export.js — 영상 파일(MP4) 만들기, 저장, 공유, 대표 사진 저장
 var Exporter = (function () {
   var FPS = 30;
-  var W = Frames.W, H = Frames.H;
-  var AVC = ['avc1.4d401f', 'avc1.42001f', 'avc1.640028', 'avc1.4d4028', 'avc1.42002a'];
+  // 화질: hd = 1080×1920 (인스타 릴스 권장 크기), sd = 720×1280
+  var QUALITY = {
+    hd: { w: 1080, h: 1920, bitrate: 12000000, avc: ['avc1.640028', 'avc1.4d4028', 'avc1.420028', 'avc1.64002a', 'avc1.4d402a', 'avc1.42002a'] },
+    sd: { w: 720, h: 1280, bitrate: 5000000, avc: ['avc1.4d401f', 'avc1.42001f', 'avc1.640028', 'avc1.4d4028', 'avc1.42002a'] }
+  };
+  function q() { return QUALITY[State.data.settings.quality] || QUALITY.hd; }
+  var W = 720, H = 1280;   // make()가 고른 화질로 바꿔요
 
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -12,12 +17,17 @@ var Exporter = (function () {
 
   async function pickVideoCodec() {
     if (!window.VideoEncoder || !window.VideoFrame) return null;
-    for (var i = 0; i < AVC.length; i++) {
-      var cfg = { codec: AVC[i], width: W, height: H, bitrate: 4000000, framerate: FPS };
-      try {
-        var r = await VideoEncoder.isConfigSupported(cfg);
-        if (r && r.supported) return cfg;
-      } catch (e) {}
+    var list = q().avc;
+    // 화질 우선 설정을 먼저 시도하고, 안 되는 기기는 기본 설정으로
+    for (var pass = 0; pass < 2; pass++) {
+      for (var i = 0; i < list.length; i++) {
+        var cfg = { codec: list[i], width: W, height: H, bitrate: q().bitrate, framerate: FPS };
+        if (pass === 0) { cfg.bitrateMode = 'variable'; cfg.latencyMode = 'quality'; }
+        try {
+          var r = await VideoEncoder.isConfigSupported(cfg);
+          if (r && r.supported) return cfg;
+        } catch (e) {}
+      }
     }
     return null;
   }
@@ -130,7 +140,7 @@ var Exporter = (function () {
         src.connect(dest);
         dest.stream.getAudioTracks().forEach(function (tr) { stream.addTrack(tr); });
       }
-      var rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 });
+      var rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: q().bitrate });
       var chunks = [], cancelled = false;
       rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
       rec.onerror = function (e) { reject(e.error || e); };
@@ -165,6 +175,8 @@ var Exporter = (function () {
   // 결과: {blob, ext, note}
   async function make(canvas, tl, audio, onProgress, stop) {
     stop = stop || function () { return false; };
+    W = q().w; H = q().h;
+    canvas.width = W; canvas.height = H;
     var lock = await keepAwake();
     try {
       var vcfg = await pickVideoCodec();
@@ -230,7 +242,7 @@ var Exporter = (function () {
   // 대표 사진(제목 장면) 이미지
   function cover(tl) {
     var c = document.createElement('canvas');
-    c.width = W; c.height = H;
+    c.width = q().w; c.height = q().h;
     var first = tl.slides[0];
     Frames.render(c.getContext('2d'), first, 1, { settings: State.data.settings, theme: Frames.THEMES[State.data.settings.theme] || Frames.THEMES.cloud });
     return new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.92); });

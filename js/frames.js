@@ -161,12 +161,14 @@ var Frames = (function () {
 
   // ---------- 배경 (미리 그려서 재사용) ----------
   var bgCache = {};
+  var scale = 1;            // 실제 캔버스 크기 ÷ 720 (고화질 1080p면 1.5)
   function background(pal, kind, seed) {
-    var key = pal.bg + kind + seed;
+    var key = pal.bg + kind + seed + '@' + scale;
     if (bgCache[key]) return bgCache[key];
     var c = document.createElement('canvas');
-    c.width = W; c.height = H;
+    c.width = Math.round(W * scale); c.height = Math.round(H * scale);
     var ctx = c.getContext('2d');
+    ctx.scale(scale, scale);
     var r = rng(seed * 977 + 13);
     ctx.fillStyle = pal.bg;
     ctx.fillRect(0, 0, W, H);
@@ -271,7 +273,7 @@ var Frames = (function () {
   // ---------- 장면 ----------
   function drawTitle(ctx, sl, p, env) {
     var t = env.theme;
-    ctx.drawImage(background(themePal(t), t.deco, 1), 0, 0);
+    ctx.drawImage(background(themePal(t), t.deco, 1), 0, 0, W, H);
     var k = 0.92 + 0.08 * easeOut(p * 3);   // 첫 화면부터 보이게 (카톡 미리보기 썸네일)
     if (env.settings.className) {
       ctx.font = Fonts.css(env.settings.bodyFont, 40);
@@ -306,7 +308,7 @@ var Frames = (function () {
 
   function drawSeason(ctx, sl, p, env) {
     var s = SEASONS[sl.season];
-    ctx.drawImage(background(seasonPal(s), s.icon, 5 + Object.keys(SEASONS).indexOf(sl.season)), 0, 0);
+    ctx.drawImage(background(seasonPal(s), s.icon, 5 + Object.keys(SEASONS).indexOf(sl.season)), 0, 0, W, H);
     var k = easeBack(p * 2.6);
     ctx.save();
     ctx.translate(W / 2, 500);
@@ -321,7 +323,7 @@ var Frames = (function () {
 
   function drawPhoto(ctx, sl, p, env) {
     var t = env.theme;
-    ctx.drawImage(background(themePal(t), t.deco, 2 + sl.idx % 3), 0, 0);
+    ctx.drawImage(background(themePal(t), t.deco, 2 + sl.idx % 3), 0, 0, W, H);
     var img = sl.img;
     var s = Photos.sizeOf(img);
     var a = s.w / s.h, maxW = 600, maxH = sl.caption ? 790 : 860;
@@ -372,7 +374,7 @@ var Frames = (function () {
 
   function drawEnd(ctx, sl, p, env) {
     var t = env.theme;
-    ctx.drawImage(background(themePal(t), t.deco, 9), 0, 0);
+    ctx.drawImage(background(themePal(t), t.deco, 9), 0, 0, W, H);
     var k = easeBack(p * 2.5) * (1 + 0.05 * Math.sin(p * Math.PI * 6));
     heart(ctx, W / 2, 420, 3.2 * k, t.sticker);
     ctx.globalAlpha = easeOut((p - 0.1) * 3);
@@ -550,6 +552,11 @@ var Frames = (function () {
   }
 
   function render(ctx, sl, p, env) {
+    // 좌표는 늘 720×1280 기준, 캔버스가 크면 그만큼 확대해서 선명하게
+    scale = ctx.canvas.width / W;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     if (env.settings.theme === 'mono') {
       if (sl.type === 'title') monoTitle(ctx, sl, p, env);
       else if (sl.type === 'season') monoSeason(ctx, sl, p, env);

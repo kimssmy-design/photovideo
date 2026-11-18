@@ -102,7 +102,8 @@ var State = (function () {
     from: '',
     photoSec: 3,
     music: 'picnic',
-    musicName: ''
+    musicName: '',
+    quality: 'hd'         // hd: 1080p 고화질, sd: 720p 보통
   };
   var CHILD = { id: 'me', name: '', birthday: '', coverId: null };
   var data = { settings: Object.assign({}, DEFAULTS), child: Object.assign({}, CHILD) };

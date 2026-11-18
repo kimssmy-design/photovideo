@@ -134,14 +134,12 @@ var Player = (function () {
     if (i > 0 && t < cur.start + FADE) {
       var prev = sl[i - 1];
       Frames.render(ctx, prev, Math.min(1, (t - prev.start) / prev.dur), e);
-      if (!buffer) {
-        buffer = document.createElement('canvas');
-        buffer.width = Frames.W; buffer.height = Frames.H;
-      }
+      if (!buffer) buffer = document.createElement('canvas');
+      if (buffer.width !== ctx.canvas.width) { buffer.width = ctx.canvas.width; buffer.height = ctx.canvas.height; }
       var b = buffer.getContext('2d');
       Frames.render(b, cur, local, e);
       ctx.globalAlpha = (t - cur.start) / FADE;
-      ctx.drawImage(buffer, 0, 0);
+      ctx.drawImage(buffer, 0, 0, Frames.W, Frames.H);
       ctx.globalAlpha = 1;
     } else {
       Frames.render(ctx, cur, local, e);

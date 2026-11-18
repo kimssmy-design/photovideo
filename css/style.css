@@ -219,3 +219,8 @@ body.dragging .desk { outline: 3px dashed var(--ink); outline-offset: -10px; }
   .font-btn { height: 32px; }
   .panel-foot { padding-top: 10px; }
 }
+
+/* 음악 고르기 + 화질 한 줄 */
+.music-q { display: flex; gap: 6px; align-items: center; }
+.music-q select { flex: 1; min-width: 0; }
+.music-q .seg { flex: 0 0 108px; margin: 0; }

@@ -1,6 +1,6 @@
 // photos.js — 사진 넣기, 촬영 날짜 읽기, 날짜순 정렬, 계절 구분
 var Photos = (function () {
-  var MAX_SIDE = 1600;   // 저장할 때 줄이는 크기 (용량 절약)
+  var MAX_SIDE = 2160;   // 저장할 때 줄이는 크기 (고화질 1080p 영상에 맞춤)
   var images = {};       // id -> ImageBitmap 또는 Image (그리기용)
   var thumbs = {};       // id -> objectURL (목록 표시용)
 
@@ -100,9 +100,11 @@ var Photos = (function () {
     var w = Math.round(s.w * r), h = Math.round(s.h * r);
     var c = document.createElement('canvas');
     c.width = w; c.height = h;
-    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    var cx = c.getContext('2d');
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(img, 0, 0, w, h);
     if (img.close) img.close();
-    var blob = await new Promise(function (res) { c.toBlob(res, 'image/jpeg', 0.88); });
+    var blob = await new Promise(function (res) { c.toBlob(res, 'image/jpeg', 0.92); });
     return { blob: blob, w: w, h: h };
   }
 
