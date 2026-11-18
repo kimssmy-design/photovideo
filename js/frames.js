@@ -644,6 +644,8 @@ var Frames = (function () {
   }
 
   function render(ctx, sl, p, env) {
+    // 효과 없음: 장면이 바뀔 때 글자가 다시 나타나거나 사진이 커지는 움직임도 없애서 깜빡이지 않게
+    if (env.settings.transition === 'none') p = 1;
     // 좌표는 늘 720×1280 기준, 캔버스가 크면 그만큼 확대해서 선명하게
     scale = ctx.canvas.width / W;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);

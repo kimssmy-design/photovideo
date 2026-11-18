@@ -3,10 +3,12 @@ var Exporter = (function () {
   var FPS = 30;
   // 화질: hd = 1080×1920 (인스타 릴스 권장 크기), sd = 720×1280
   var QUALITY = {
+    qhd: { w: 1440, h: 2560, bitrate: 24000000, avc: ['avc1.640033', 'avc1.4d4033', 'avc1.640032', 'avc1.4d4032', 'avc1.420033'] },
     hd: { w: 1080, h: 1920, bitrate: 12000000, avc: ['avc1.640028', 'avc1.4d4028', 'avc1.420028', 'avc1.64002a', 'avc1.4d402a', 'avc1.42002a'] },
     sd: { w: 720, h: 1280, bitrate: 5000000, avc: ['avc1.4d401f', 'avc1.42001f', 'avc1.640028', 'avc1.4d4028', 'avc1.42002a'] }
   };
-  function q() { return QUALITY[State.data.settings.quality] || QUALITY.hd; }
+  var forced = null;   // 기기가 고른 화질을 못 만들 때 한 단계 낮춘 값
+  function q() { return forced || QUALITY[State.data.settings.quality] || QUALITY.qhd; }
   var W = 720, H = 1280;   // make()가 고른 화질로 바꿔요
 
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -153,11 +155,15 @@ var Exporter = (function () {
       };
       rec.start(1000);
       if (src) src.start();
-      var t0 = performance.now();
+      var t0 = performance.now(), lastF = -1;
       function loop() {
         var t = (performance.now() - t0) / 1000;
-        Player.renderAt(ctx, tl, Math.min(t, tl.total));
-        onProgress(Math.min(1, t / tl.total));
+        var f = Math.floor(t * FPS);
+        if (f !== lastF) {   // 120Hz 폰에서도 1초에 30번만 그려서 장면이 고르게 녹화돼요
+          lastF = f;
+          Player.renderAt(ctx, tl, Math.min(f / FPS, tl.total));
+          onProgress(Math.min(1, t / tl.total));
+        }
         if (stop()) { cancelled = true; rec.stop(); return; }
         if (t >= tl.total + 0.2) { rec.stop(); return; }
         requestAnimationFrame(loop);
@@ -175,23 +181,31 @@ var Exporter = (function () {
   // 결과: {blob, ext, note}
   async function make(canvas, tl, audio, onProgress, stop) {
     stop = stop || function () { return false; };
+    forced = null;
     W = q().w; H = q().h;
+    var lowered = '';
+    var vcheck = await pickVideoCodec();
+    if (!vcheck && State.data.settings.quality === 'qhd') {
+      forced = QUALITY.hd; W = 1080; H = 1920;
+      lowered = '이 기기는 1440p를 만들 수 없어 1080p로 만들었어요.';
+    }
     canvas.width = W; canvas.height = H;
     var lock = await keepAwake();
     try {
       var vcfg = await pickVideoCodec();
       var aac = audio ? await aacSupported() : false;
       if (vcfg && (!audio || aac)) {
-        try { return await viaWebCodecs(canvas, tl, audio, vcfg, !!audio, onProgress, stop); } catch (e) {
+        try { var rw = await viaWebCodecs(canvas, tl, audio, vcfg, !!audio, onProgress, stop); rw.note = lowered; rw.method = '빠른 변환'; return rw; } catch (e) {
           if (e === CANCEL) throw e;
           console.warn(e);
         }
       }
       var mime = recorderType();
-      if (mime) return await viaRecorder(canvas, tl, audio, mime, onProgress, stop);
+      if (mime) { var rr = await viaRecorder(canvas, tl, audio, mime, onProgress, stop); rr.note = lowered; rr.method = '녹화 방식'; return rr; }
       if (vcfg) {
         var r2 = await viaWebCodecs(canvas, tl, null, vcfg, false, onProgress, stop);
-        r2.note = '이 브라우저는 음악을 넣은 MP4를 만들 수 없어 음악 없이 저장했어요. 음악이 필요하면 크롬·삼성 인터넷·사파리 최신 버전에서 만들어 주세요.';
+        r2.note = (lowered ? lowered + ' ' : '') + '이 브라우저는 음악을 넣은 MP4를 만들 수 없어 음악 없이 저장했어요. 음악이 필요하면 크롬·삼성 인터넷·사파리 최신 버전에서 만들어 주세요.';
+        r2.method = '빠른 변환';
         return r2;
       }
       var wm = webmType();

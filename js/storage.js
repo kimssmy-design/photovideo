@@ -104,7 +104,8 @@ var State = (function () {
     photoSec: 3,
     music: 'picnic',
     musicName: '',
-    quality: 'hd'         // hd: 1080p 고화질, sd: 720p 보통
+    quality: 'qhd',       // qhd: 1440p 최고화질, hd: 1080p 고화질, sd: 720p 보통
+    qualityV: 2
   };
   var CHILD = { id: 'me', name: '', birthday: '', coverId: null };
   var data = { settings: Object.assign({}, DEFAULTS), child: Object.assign({}, CHILD) };
@@ -115,6 +116,7 @@ var State = (function () {
       if (saved) {
         data.settings = Object.assign({}, DEFAULTS, saved.settings || {});
         data.child = Object.assign({}, CHILD, saved.child || {});
+        if (!saved.settings || !saved.settings.qualityV) { data.settings.quality = 'qhd'; data.settings.qualityV = 2; }
       }
       return data;
     }).catch(function () { return data; });

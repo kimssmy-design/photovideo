@@ -78,8 +78,7 @@ var App = (function () {
     seg($('themeSeg'), [['mono', '흑백'], ['cloud', '구름'], ['star', '별'], ['flower', '꽃']], s.theme, function (v) { s.theme = v; changed(); renderSettings(); });
     $('monoOpts').hidden = s.theme !== 'mono';
     $('transSel').value = s.transition || 'fade';
-    seg($('qualitySeg'), [['hd', '고화질'], ['sd', '보통']], s.quality, function (v) { s.quality = v; changed(); renderSettings(); });
-    $('qualitySeg').title = s.quality === 'hd' ? '1080×1920 · 인스타·유튜브용' : '720×1280 · 빠르고 가벼움';
+    $('qualitySel').value = s.quality;
     markColor();
     renderFontBtns();
     renderMusic();
@@ -160,6 +159,7 @@ var App = (function () {
     $('bodyFontBtn').onclick = function () {
       Fonts.openPicker('body', S().bodyFont, function (k) { S().bodyFont = k; renderFontBtns(); changed(); });
     };
+    $('qualitySel').onchange = function () { S().quality = $('qualitySel').value; changed(); };
     $('transSel').onchange = function () { S().transition = $('transSel').value; changed(); };
     $('musicSel').onchange = function () { S().music = $('musicSel').value; State.save(); };
     $('musicFile').onchange = function (e) {
@@ -412,7 +412,7 @@ var App = (function () {
     $('resultVideo').hidden = false;
     $('working').hidden = true;
     $('done').hidden = false;
-    $('doneNote').textContent = (r.note ? r.note + ' ' : '') + '(' + (r.blob.size / 1048576).toFixed(1) + 'MB)' + (Exporter.isIOS ? " · 저장할 때 '동영상 저장'을 눌러 주세요" : '');
+    $('doneNote').textContent = (r.note ? r.note + ' ' : '') + '(' + (r.blob.size / 1048576).toFixed(1) + 'MB' + (r.method ? ' · ' + r.method : '') + ')' + (Exporter.isIOS ? " · 저장할 때 '동영상 저장'을 눌러 주세요" : '');
     $('shareBtn').hidden = !Exporter.canShareFile(r.blob, fileName(r.ext));
   }
 
