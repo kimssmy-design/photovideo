@@ -321,55 +321,95 @@ var Frames = (function () {
     ctx.globalAlpha = 1;
   }
 
-  function drawPhoto(ctx, sl, p, env) {
-    var t = env.theme;
-    ctx.drawImage(background(themePal(t), t.deco, 2 + sl.idx % 3), 0, 0, W, H);
-    var img = sl.img;
+  // ---------- 사진 채우기: 세로 사진은 꽉 차게, 가로 사진은 전체가 보이게 + 뒤에 흐린 같은 사진 ----------
+  var blurCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function blurOf(img) {
+    if (blurCache && blurCache.has(img)) return blurCache.get(img);
     var s = Photos.sizeOf(img);
-    var a = s.w / s.h, maxW = 600, maxH = sl.caption ? 790 : 860;
-    var cw, ch;
-    if (a > maxW / maxH) { cw = maxW; ch = cw / a; } else { ch = maxH; cw = ch * a; }
-    var cx = W / 2, cy = sl.caption ? 570 : 600;
-    var k = 0.94 + 0.06 * easeOut(p * 4);
-    var tilt = (sl.idx % 2 ? 1 : -1) * 1.8 * Math.PI / 180;
-    var pad = 18;
+    var c = document.createElement('canvas');
+    c.width = 36; c.height = Math.max(1, Math.round(36 * s.h / s.w));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);   // 아주 작게 줄였다가 키우면 자연스럽게 흐려져요
+    if (blurCache) blurCache.set(img, c);
+    return c;
+  }
+  function fillPhoto(ctx, img, x, y, w, h, zoom) {
+    if (!img) return;
+    var sz = Photos.sizeOf(img);
+    var ia = sz.w / sz.h, sa = w / h;
+    if (ia <= sa * 1.25) { drawCover(ctx, img, x, y, w, h, zoom); return; }
+    drawCover(ctx, blurOf(img), x, y, w, h, 1.15);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(x, y, w, h);
+    var r = Math.min(w / sz.w, h / sz.h) * (zoom || 1);
+    var dw = sz.w * r, dh = sz.h * r;
+    ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  }
+
+  // ---------- 귀여운 프레임 사진 장: 틀(배경·카드·스티커)은 고정, 사진·글만 바뀜 ----------
+  var CUTE = { cx: W / 2, cy: 560, w: 570, h: 760, pad: 18, tilt: -1.5 * Math.PI / 180 };
+  function cuteFrame(ctx) {
+    ctx.translate(CUTE.cx, CUTE.cy);
+    ctx.rotate(CUTE.tilt);
+  }
+  function cuteChrome(ctx, env) {
+    var t = env.theme, w = CUTE.w, h = CUTE.h, pad = CUTE.pad;
+    ctx.drawImage(background(themePal(t), t.deco, 2), 0, 0, W, H);
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(tilt);
-    ctx.scale(k, k);
+    cuteFrame(ctx);
     ctx.fillStyle = t.line;
-    rr(ctx, -cw / 2 - pad - 6, -ch / 2 - pad - 6, cw + pad * 2 + 12, ch + pad * 2 + 12, 40);
+    rr(ctx, -w / 2 - pad - 6, -h / 2 - pad - 6, w + pad * 2 + 12, h + pad * 2 + 12, 40);
     ctx.fill();
     ctx.fillStyle = '#FFFFFF';
-    rr(ctx, -cw / 2 - pad, -ch / 2 - pad, cw + pad * 2, ch + pad * 2, 34);
+    rr(ctx, -w / 2 - pad, -h / 2 - pad, w + pad * 2, h + pad * 2, 34);
     ctx.fill();
+    ctx.fillStyle = t.soft;
+    rr(ctx, -w / 2, -h / 2, w, h, 20);
+    ctx.fill();
+    ctx.restore();
+  }
+  function cuteContent(ctx, sl, p, env, dx) {
+    var w = CUTE.w, h = CUTE.h;
     ctx.save();
-    rr(ctx, -cw / 2, -ch / 2, cw, ch, 20);
+    cuteFrame(ctx);
+    rr(ctx, -w / 2, -h / 2, w, h, 20);
     ctx.clip();
-    drawCover(ctx, img, -cw / 2, -ch / 2, cw, ch, 1 + 0.06 * p);
+    ctx.translate(dx || 0, 0);
+    fillPhoto(ctx, sl.img, -w / 2, -h / 2, w, h, 1 + 0.05 * p);
     ctx.restore();
-    if (sl.idx % 2) heart(ctx, cw / 2 - 6, -ch / 2 + 6, 0.85, t.sticker);
-    else star(ctx, cw / 2 - 4, -ch / 2 + 4, 40, '#FFD66B', 0.25);
+  }
+  function cuteSticker(ctx, env) {
+    ctx.save();
+    cuteFrame(ctx);
+    star(ctx, CUTE.w / 2 - 4, -CUTE.h / 2 + 4, 40, '#FFD66B', 0.25);
     ctx.restore();
-    var bottom = cy + ch / 2 + pad;
+  }
+  function cuteText(ctx, sl, p, env, alpha) {
+    var t = env.theme;
+    var bottom = CUTE.cy + CUTE.h / 2 + CUTE.pad;
     if (sl.caption) {
-      // 응원 문구 (아래에서 살짝 올라오며 나타나요)
       var ck = easeOut((p - 0.08) * 4);
-      var ft = fitText(ctx, sl.caption, env.settings.titleFont, 58, 640, 2);
+      var ft = fitText(ctx, sl.caption, env.settings.titleFont, 56, 640, 2);
       ctx.font = Fonts.css(env.settings.titleFont, ft.px);
-      var capY = Math.min(H - 150, bottom + 40 + ft.lines.length * ft.px * 0.6) + (1 - ck) * 20;
-      ctx.globalAlpha = ck;
+      var capY = bottom + 50 + (ft.lines.length - 1) * ft.px * 0.6;
+      ctx.globalAlpha = alpha * ck;
       drawLines(ctx, ft.lines, W / 2, capY, ft.px * 1.2, t.text, '#FFFFFF', 14);
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = alpha;
       if (sl.date) {
         ctx.font = Fonts.css(env.settings.bodyFont, 34);
-        drawLines(ctx, [sl.date], W / 2, Math.min(H - 60, capY + ft.lines.length * ft.px * 0.6 + 50), 34, t.text, '#FFFFFF', 8);
+        drawLines(ctx, [sl.date], W / 2, Math.min(H - 50, capY + ft.lines.length * ft.px * 0.6 + 44), 34, t.text, '#FFFFFF', 8);
       }
     } else if (sl.date) {
-      var dy = Math.min(H - 70, bottom + 80);
+      ctx.globalAlpha = alpha;
       ctx.font = Fonts.css(env.settings.bodyFont, 44);
-      drawLines(ctx, [sl.date], W / 2, dy, 44, t.text, '#FFFFFF', 10);
+      drawLines(ctx, [sl.date], W / 2, bottom + 70, 44, t.text, '#FFFFFF', 10);
     }
+    ctx.globalAlpha = 1;
+  }
+  function drawPhoto(ctx, sl, p, env) {
+    cuteChrome(ctx, env);
+    cuteContent(ctx, sl, p, env, 0);
+    cuteSticker(ctx, env);
+    cuteText(ctx, sl, p, env, 1);
   }
 
   function drawEnd(ctx, sl, p, env) {
@@ -474,45 +514,58 @@ var Frames = (function () {
     ctx.globalAlpha = 1;
   }
 
-  function monoPhotoSlide(ctx, sl, p, env) {
-    var s = env.settings, acc = s.accent || INK;
+  // 흑백 사진 장: 틀(흰 바탕·위쪽 선·사진 칸)은 고정, 사진·글만 바뀜
+  var BAND_Y = 168;
+  function monoSlot(s) {
+    var w = W - M * 2 - (s.optBorder ? 40 : 0);
+    var h = Math.round(w * 4 / 3);
+    return { x: (W - w) / 2, y: BAND_Y + 60 + (s.optBorder ? 16 : 0), w: w, h: h };
+  }
+  function monoChrome(ctx, env) {
+    var s = env.settings, acc = s.accent || INK, r = monoSlot(s);
     monoBase(ctx);
-    // 위쪽 띠: 왼쪽 연도, 오른쪽 큰 월, 아래 선
-    var bandY = 168;
+    rule(ctx, M, BAND_Y, W - M * 2, acc, 3);
+    if (s.optBorder) {
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      ctx.fillRect(r.x - 14, r.y - 10, r.w + 28, r.h + 52);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(r.x - 16, r.y - 16, r.w + 32, r.h + 52);
+      ctx.strokeStyle = '#E4E4E4';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(r.x - 16, r.y - 16, r.w + 32, r.h + 52);
+    }
+    ctx.fillStyle = FRAME_BG;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+  }
+  function monoContent(ctx, sl, p, env, dx) {
+    var r = monoSlot(env.settings);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+    ctx.translate(dx || 0, 0);
+    fillPhoto(ctx, sl.img, r.x, r.y, r.w, r.h, 1 + 0.04 * p);
+    ctx.restore();
+  }
+  function monoText(ctx, sl, p, env, alpha) {
+    var s = env.settings, acc = s.accent || INK, r = monoSlot(s);
+    ctx.globalAlpha = alpha;
     ctx.textBaseline = 'alphabetic';
     if (sl.year) {
       ctx.font = Fonts.css(s.bodyFont, 26);
       ctx.fillStyle = SOFT;
       ctx.textAlign = 'left';
       spacing(ctx, 6);
-      ctx.fillText(String(sl.year), M + 4, bandY - 14);
+      ctx.fillText(String(sl.year), M + 4, BAND_Y - 14);
       spacing(ctx, 0);
     }
     if (sl.month) {
       ctx.font = Fonts.css(s.titleFont, 92);
       ctx.fillStyle = acc;
       ctx.textAlign = 'right';
-      ctx.fillText(sl.month, W - M - 4, bandY - 12);
+      ctx.fillText(sl.month, W - M - 4, BAND_Y - 12);
     }
-    rule(ctx, M, bandY, W - M * 2, acc, 3);
-
-    // 사진: 잘리지 않게 전체를 넣고 가운데
-    var size = Photos.sizeOf(sl.img);
-    var a = size.w / size.h;
-    var maxW = W - M * 2 - (s.optBorder ? 40 : 0);
-    var top = bandY + 60, bottomLimit = H - 200;
-    var maxH = bottomLimit - top - (s.optBorder ? 40 : 0);
-    var pw, ph;
-    if (a > maxW / maxH) { pw = maxW; ph = pw / a; } else { ph = maxH; pw = ph * a; }
-    var px = (W - pw) / 2, py = top + (maxH - ph) / 2;
-    var k = easeOut(p * 4);
-    ctx.globalAlpha = 0.4 + 0.6 * k;
-    monoPhoto(ctx, sl.img, px, py, pw, ph, 1 + 0.04 * p, s);
-    ctx.globalAlpha = 1;
-    monoStickers(ctx, px, py, pw, ph, s);
-
-    // 사진 아래 한 줄: 왼쪽 글, 오른쪽 날짜·개월 수
-    var capY = py + ph + (s.optBorder ? 70 : 52);
+    var capY = r.y + r.h + (s.optBorder ? 70 : 52);
     var right = sl.date || '';
     ctx.font = Fonts.css(s.bodyFont, 28);
     var rw = right ? ctx.measureText(right).width : 0;
@@ -520,18 +573,57 @@ var Frames = (function () {
       ctx.fillStyle = INK;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(right, px + pw, capY);
+      ctx.fillText(right, r.x + r.w, capY);
     }
     if (sl.caption) {
-      var maxCap = Math.max(160, pw - rw - 24);
-      ctx.globalAlpha = easeOut((p - 0.08) * 4);
+      var maxCap = Math.max(160, r.w - rw - 24);
+      ctx.globalAlpha = alpha * easeOut((p - 0.08) * 4);
       var ft = fitText(ctx, sl.caption, s.bodyFont, 32, maxCap, 2);
       ctx.font = Fonts.css(s.bodyFont, ft.px);
       ctx.fillStyle = INK;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ft.lines.forEach(function (l, i) { ctx.fillText(l, px, capY + i * ft.px * 1.3); });
+      ft.lines.forEach(function (l, i) { ctx.fillText(l, r.x, capY + i * ft.px * 1.3); });
+    }
+    ctx.globalAlpha = 1;
+  }
+  function monoPhotoSlide(ctx, sl, p, env) {
+    var r = monoSlot(env.settings);
+    monoChrome(ctx, env);
+    monoContent(ctx, sl, p, env, 0);
+    monoStickers(ctx, r.x, r.y, r.w, r.h, env.settings);
+    monoText(ctx, sl, p, env, 1);
+  }
+
+  // ---------- 사진 장 → 사진 장: 틀은 그대로, 사진만 넘어가요 ----------
+  function swap(ctx, a, pa, b, pb, k, mode, env) {
+    scale = ctx.canvas.width / W;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    var mono = env.settings.theme === 'mono';
+    var e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    var slotW = mono ? monoSlot(env.settings).w : CUTE.w;
+    var content = mono ? monoContent : cuteContent;
+    if (mono) monoChrome(ctx, env); else cuteChrome(ctx, env);
+    if (mode === 'slide') {
+      content(ctx, a, pa, env, -slotW * e);
+      content(ctx, b, pb, env, slotW * (1 - e));
+    } else {
+      content(ctx, a, pa, env, 0);
+      ctx.globalAlpha = k;
+      content(ctx, b, pb, env, 0);
       ctx.globalAlpha = 1;
+    }
+    if (mono) {
+      var r = monoSlot(env.settings);
+      monoStickers(ctx, r.x, r.y, r.w, r.h, env.settings);
+      monoText(ctx, a, pa, env, 1 - k);
+      monoText(ctx, b, pb, env, k);
+    } else {
+      cuteSticker(ctx, env);
+      cuteText(ctx, a, pa, env, 1 - k);
+      cuteText(ctx, b, pb, env, k);
     }
   }
 
@@ -570,5 +662,5 @@ var Frames = (function () {
     else drawEnd(ctx, sl, p, env);
   }
 
-  return { W: W, H: H, THEMES: THEMES, render: render };
+  return { W: W, H: H, THEMES: THEMES, render: render, swap: swap };
 })();

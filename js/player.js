@@ -2,7 +2,7 @@
 var Player = (function () {
   var FADE = 0.6;          // 장면이 겹치며 바뀌는 시간(초)
   var DUR = { title: 3.5, season: 2.2, end: 4.5 };
-  var buffer = null, buffer2 = null;
+  var buffer = null;
 
   function env() {
     var s = State.data.settings;
@@ -131,29 +131,20 @@ var Player = (function () {
     while (i < sl.length - 1 && sl[i + 1].start <= t) i++;
     var cur = sl[i];
     var local = Math.min(1, Math.max(0, (t - cur.start) / cur.dur));
-    var mode = e.settings.transition || 'fade';   // fade: 겹치며, slide: 옆으로 밀기, none: 바로 바뀜
+    var mode = e.settings.transition || 'fade';   // fade: 페이드, slide: 슬라이드, none: 바로 바뀜
     if (i > 0 && t < cur.start + FADE && mode !== 'none') {
       var prev = sl[i - 1];
       var k = (t - cur.start) / FADE;
-      Frames.render(ctx, prev, Math.min(1, (t - prev.start) / prev.dur), e);
-      if (!buffer) buffer = document.createElement('canvas');
-      if (buffer.width !== ctx.canvas.width) { buffer.width = ctx.canvas.width; buffer.height = ctx.canvas.height; }
-      var b = buffer.getContext('2d');
-      Frames.render(b, cur, local, e);
-      if (mode === 'slide') {
-        // 새 장면이 오른쪽에서 들어오고, 앞 장면은 왼쪽으로 밀려나요
-        var ease = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-        var x = Frames.W * ease;
-        if (!buffer2) buffer2 = document.createElement('canvas');
-        if (buffer2.width !== ctx.canvas.width) { buffer2.width = ctx.canvas.width; buffer2.height = ctx.canvas.height; }
-        var b2 = buffer2.getContext('2d');
-        b2.setTransform(1, 0, 0, 1, 0, 0);
-        b2.drawImage(ctx.canvas, 0, 0);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, Frames.W, Frames.H);
-        ctx.drawImage(buffer2, -x, 0, Frames.W, Frames.H);
-        ctx.drawImage(buffer, Frames.W - x, 0, Frames.W, Frames.H);
+      var pPrev = Math.min(1, (t - prev.start) / prev.dur);
+      if (prev.type === 'photo' && cur.type === 'photo') {
+        // 사진 → 사진: 틀은 그대로 두고 사진 칸 안에서만 넘어가요
+        Frames.swap(ctx, prev, pPrev, cur, local, k, mode, e);
       } else {
+        // 첫 장·계절 장·마지막 장처럼 틀이 바뀔 때는 부드럽게 겹쳐요
+        Frames.render(ctx, prev, pPrev, e);
+        if (!buffer) buffer = document.createElement('canvas');
+        if (buffer.width !== ctx.canvas.width) { buffer.width = ctx.canvas.width; buffer.height = ctx.canvas.height; }
+        Frames.render(buffer.getContext('2d'), cur, local, e);
         ctx.globalAlpha = k;
         ctx.drawImage(buffer, 0, 0, Frames.W, Frames.H);
         ctx.globalAlpha = 1;
