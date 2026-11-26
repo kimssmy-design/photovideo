@@ -326,6 +326,7 @@ var App = (function () {
     var ctx = $('previewCanvas').getContext('2d');
     try {
       var tl = await Player.build(C(), photos, []);
+      await Player.prepare(tl, 2.2);
       Player.renderAt(ctx, tl, 2.2);
     } catch (e) {}
   }
@@ -335,6 +336,7 @@ var App = (function () {
     if (!photos.length) { toast('사진을 먼저 넣어 주세요'); return; }
     btn.textContent = '…';
     var tl = await Player.build(C(), photos, []);
+    await Player.prepare(tl, 0);
     var audio = null;
     try { audio = await Music.build(tl.total); } catch (e) {}
     btn.textContent = '■';
@@ -356,10 +358,12 @@ var App = (function () {
     $('previewText').textContent = '준비 중…';
     try {
       var tl = await Player.build(C(), photos, []);
+      await Player.prepare(tl, 0);
       var audio = null;
       try { audio = await Music.build(tl.total); } catch (e) {}
       var start = function () {
         if (bigCtl) bigCtl.stop();
+        Player.prepare(tl, 0);
         bigCtl = Player.play($('bigPreview'), tl, audio, function (t) {
           $('previewFill').style.width = Math.round(t / tl.total * 100) + '%';
           $('previewText').textContent = Math.floor(t) + '초 / ' + Math.round(tl.total) + '초';

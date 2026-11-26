@@ -88,6 +88,7 @@ var Exporter = (function () {
       if (failure) throw failure;
       if (stop()) throw CANCEL;
       var t = f / FPS;
+      if (f % 15 === 0) await Player.prepare(tl, t);
       Player.renderAt(ctx, tl, t);
       var vf = new VideoFrame(canvas, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / FPS) });
       venc.encode(vf, { keyFrame: f % (FPS * 2) === 0 });
@@ -155,10 +156,11 @@ var Exporter = (function () {
       };
       rec.start(1000);
       if (src) src.start();
-      var t0 = performance.now(), lastF = -1;
+      var t0 = performance.now(), lastF = -1, lastPrep = -1;
       function loop() {
         var t = (performance.now() - t0) / 1000;
         var f = Math.floor(t * FPS);
+        if (Math.floor(t * 2) !== lastPrep) { lastPrep = Math.floor(t * 2); Player.prepare(tl, t); }
         if (f !== lastF) {   // 120Hz 폰에서도 1초에 30번만 그려서 장면이 고르게 녹화돼요
           lastF = f;
           Player.renderAt(ctx, tl, Math.min(f / FPS, tl.total));
@@ -179,9 +181,39 @@ var Exporter = (function () {
   }
 
   // 결과: {blob, ext, note}
+  // 만든 영상이 이 기기에서 실제로 재생되는지 확인
+  function playable(blob) {
+    return new Promise(function (resolve) {
+      var v = document.createElement('video');
+      var url = URL.createObjectURL(blob);
+      var done = false;
+      function finish(ok) { if (done) return; done = true; clearTimeout(timer); v.removeAttribute('src'); v.load(); URL.revokeObjectURL(url); resolve(ok); }
+      var timer = setTimeout(function () { finish(v.videoWidth > 0); }, 8000);
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = 'auto';
+      v.onloadeddata = function () { finish(v.videoWidth > 0); };
+      v.onerror = function () { finish(false); };
+      v.src = url;
+    });
+  }
+
   async function make(canvas, tl, audio, onProgress, stop) {
+    await Player.prepare(tl, 0);
+    var r = await makeOnce(canvas, tl, audio, onProgress, stop, null);
+    if (W > 1080 && !(await playable(r.blob))) {
+      // 1440p가 이 기기에서 재생되지 않으면 1080p로 다시 만들어요
+      onProgress(0);
+      await Player.prepare(tl, 0);
+      r = await makeOnce(canvas, tl, audio, onProgress, stop, QUALITY.hd);
+      r.note = '이 기기에서 1440p 영상이 재생되지 않아 1080p로 다시 만들었어요. ' + (r.note || '');
+    }
+    return r;
+  }
+
+  async function makeOnce(canvas, tl, audio, onProgress, stop, force) {
     stop = stop || function () { return false; };
-    forced = null;
+    forced = force || null;
     W = q().w; H = q().h;
     var lowered = '';
     var vcheck = await pickVideoCodec();

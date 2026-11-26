@@ -100,7 +100,7 @@ var Player = (function () {
       var ownText = s.photoTextOn && p.text ? Children.fill(p.text, child) : '';
       var d = new Date(p.date);
       slides.push({
-        type: 'photo', img: await Photos.image(p),
+        type: 'photo', photo: p, img: null,
         date: photoLabel(p),
         caption: ownText || caps[i] || '',
         year: p.exif ? d.getFullYear() : '', month: p.exif ? (d.getMonth() + 1) + '월' : '',
@@ -109,7 +109,7 @@ var Player = (function () {
     }
     var msg = s.personalOn && child.message && child.message.trim() ? child.message.trim() : s.endTpl;
     slides.push({ type: 'end', text: Children.fill(msg, child), from: [s.className, s.from].filter(Boolean).join(' '), dur: DUR.end });
-    Photos.keepOnly(all.map(function (x) { return x.id; }));
+    Photos.keepOnly(cover ? [cover.id] : []);
 
     var t = 0;
     slides.forEach(function (sl, k) {
@@ -123,6 +123,31 @@ var Player = (function () {
     await Promise.all([Fonts.ensure(s.titleFont, titleText + '가'), Fonts.ensure(s.bodyFont, bodyText + '가')]);
 
     return { slides: slides, total: t, photoCount: all.length };
+  }
+
+  // t초 근처(앞 1초 ~ 뒤 3초) 사진만 열어 두고, 지난 사진은 메모리에서 내려놓아요
+  function prepare(tl, t) {
+    var keep = {}, jobs = [];
+    var cover = tl.slides[0].img;
+    tl.slides.forEach(function (sl) {
+      if (sl.type !== 'photo') return;
+      var near = sl.start + sl.dur > t - 1 && sl.start < t + 3;
+      if (near) {
+        keep[sl.photo.id] = true;
+        if (!sl.img) {
+          var ready = Photos.loaded(sl.photo.id);
+          if (ready) sl.img = ready;
+          else jobs.push(Photos.image(sl.photo).then(function (img) { sl.img = img; }).catch(function () {}));
+        }
+      }
+    });
+    tl.slides.forEach(function (sl) {
+      if (sl.type === 'photo' && sl.img && !keep[sl.photo.id] && sl.img !== cover) {
+        Photos.release(sl.photo.id);
+        sl.img = null;
+      }
+    });
+    return Promise.all(jobs);
   }
 
   function renderAt(ctx, tl, t) {
@@ -169,9 +194,11 @@ var Player = (function () {
       } catch (e) { actx = null; }
     }
     function now() { return (performance.now() - t0) / 1000; }
+    var lastPrep = -1;
     function loop() {
       if (stopped) return;
       var t = Math.min(tl.total, now());
+      if (Math.floor(t * 2) !== lastPrep) { lastPrep = Math.floor(t * 2); prepare(tl, t); }
       var i = renderAt(ctx, tl, t);
       if (onTick) onTick(t, i);
       if (t >= tl.total) { stop(); return; }
@@ -188,5 +215,5 @@ var Player = (function () {
     return { stop: stop };
   }
 
-  return { build: build, estimate: estimate, coverOf: coverOf, renderAt: renderAt, play: play, FADE: FADE };
+  return { prepare: prepare, build: build, estimate: estimate, coverOf: coverOf, renderAt: renderAt, play: play, FADE: FADE };
 })();

@@ -152,9 +152,25 @@ var Photos = (function () {
     return thumbs[p.id];
   }
 
+  // 영상용 그림: 긴 쪽 1600px로 줄여서 열어요 (사진이 100장 넘어도 폰 메모리가 넘치지 않게)
+  var VIDEO_SIDE = 1600;
+  var loading = {};
+  function decodeForVideo(p) {
+    var r = Math.min(1, VIDEO_SIDE / Math.max(p.w || VIDEO_SIDE, p.h || VIDEO_SIDE));
+    if (window.createImageBitmap && r < 1) {
+      return createImageBitmap(p.blob, { resizeWidth: Math.round(p.w * r), resizeHeight: Math.round(p.h * r), resizeQuality: 'high' })
+        .catch(function () { return decode(p.blob); });
+    }
+    return decode(p.blob);
+  }
   async function image(p) {
-    if (!images[p.id]) images[p.id] = await decode(p.blob);
-    return images[p.id];
+    if (images[p.id]) return images[p.id];
+    if (!loading[p.id]) loading[p.id] = decodeForVideo(p).then(function (img) { images[p.id] = img; delete loading[p.id]; return img; });
+    return loading[p.id];
+  }
+  function loaded(id) { return images[id] || null; }
+  function release(id) {
+    if (images[id]) { if (images[id].close) images[id].close(); delete images[id]; }
   }
 
   // 지금 쓰는 사진만 남기고 메모리 정리
@@ -202,6 +218,7 @@ var Photos = (function () {
   return {
     addFiles: addFiles, sortByDate: sortByDate, seasonOf: seasonOf, dateLabel: dateLabel,
     thumb: thumb, image: image, keepOnly: keepOnly, remove: remove, forget: forget, sizeOf: sizeOf,
+    loaded: loaded, release: release,
     copyTo: copyTo, moveTo: moveTo, setText: setText
   };
 })();

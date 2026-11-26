@@ -105,18 +105,23 @@ var State = (function () {
     music: 'picnic',
     musicName: '',
     quality: 'qhd',       // qhd: 1440p 최고화질, hd: 1080p 고화질, sd: 720p 보통
-    qualityV: 2
+    qualityV: 3
   };
   var CHILD = { id: 'me', name: '', birthday: '', coverId: null };
   var data = { settings: Object.assign({}, DEFAULTS), child: Object.assign({}, CHILD) };
   var timer = null;
+  function isPhone() { return window.matchMedia && window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 900; }
+  if (isPhone()) data.settings.quality = 'hd';
 
   function load() {
     return Store.get('state').then(function (saved) {
       if (saved) {
         data.settings = Object.assign({}, DEFAULTS, saved.settings || {});
         data.child = Object.assign({}, CHILD, saved.child || {});
-        if (!saved.settings || !saved.settings.qualityV) { data.settings.quality = 'qhd'; data.settings.qualityV = 2; }
+        if (!saved.settings || (saved.settings.qualityV || 0) < 3) {
+          data.settings.quality = isPhone() ? 'hd' : 'qhd';
+          data.settings.qualityV = 3;
+        }
       }
       return data;
     }).catch(function () { return data; });
